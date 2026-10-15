@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kloten Fishing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EBEFE8; --surface:#F8FAF6; --surface-2:#DFE6DC; --ink:#15251D; --muted:#52645A; --line:#C3CFC1;
+  --accent:#B3322F; --accent-ink:#FFFFFF; --good:#2E7D4E; --warn:#D69A1A; --bad:#B3322F; --slack:#5E8FA8;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1814; --surface:#15231E; --surface-2:#1E322A; --ink:#E6EFE8; --muted:#97AA9F; --line:#2B4036;
+    --accent:#E2655F; --accent-ink:#1A0C0B; --good:#58B97E; --warn:#E5B04A; --bad:#E2655F; --slack:#7FB0C8;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1814; --surface:#15231E; --surface-2:#1E322A; --ink:#E6EFE8; --muted:#97AA9F; --line:#2B4036;
+  --accent:#E2655F; --accent-ink:#1A0C0B; --good:#58B97E; --warn:#E5B04A; --bad:#E2655F; --slack:#7FB0C8;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  line-height:1.45; -webkit-text-size-adjust:100%;
+}
+.app{max-width:780px; margin:0 auto; padding:16px 16px 40px}
+.top{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px}
+h1{margin:0; font-size:1.7rem; font-weight:800; letter-spacing:-.02em}
+h2{margin:0 0 8px; font-size:1.05rem; font-weight:600}
+.turn{margin:0; color:var(--muted); font-size:.95rem}
+.turn strong{color:var(--ink)}
+canvas{display:block; width:100%; height:auto; aspect-ratio:16/9; border-radius:16px; background:#223}
+.status{min-height:2.9em; margin:12px 2px 8px; font-size:1.05rem}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:14px}
+.panel.first{margin-top:0; margin-bottom:14px}
+.hint{margin:0 0 10px; color:var(--muted); font-size:.92rem}
+.meter{position:relative; height:30px; background:var(--surface-2); border-radius:8px; overflow:hidden; border:1px solid var(--line)}
+.meter .zone{position:absolute; top:0; bottom:0}
+.meter .marker{position:absolute; top:-2px; bottom:-2px; width:5px; margin-left:-2.5px; background:var(--ink); border-radius:3px}
+.sweet{background:color-mix(in srgb, var(--good) 55%, transparent)}
+.band{background:color-mix(in srgb, var(--good) 60%, transparent)}
+.danger{right:0; width:9%; background:color-mix(in srgb, var(--bad) 55%, transparent)}
+.slack{left:0; width:12%; background:color-mix(in srgb, var(--slack) 40%, transparent)}
+.needle.hot{background:var(--bad)}
+.meter-labels{display:flex; justify-content:space-between; font-size:.8rem; color:var(--muted); margin:4px 2px 0}
+.progress{height:10px; background:var(--surface-2); border-radius:6px; overflow:hidden; margin-top:12px; border:1px solid var(--line)}
+.progress > i{display:block; height:100%; width:0; background:var(--good)}
+.result{background:var(--surface); border:2px solid var(--good); border-radius:12px; padding:12px 14px; margin-bottom:12px}
+.result.lost{border-color:var(--bad)}
+.result h2{font-size:1.3rem; margin-bottom:2px}
+.result p{margin:0; color:var(--muted)}
+.act{
+  display:block; width:100%; margin-top:12px; padding:20px 16px; font:inherit; font-size:1.3rem; font-weight:800;
+  color:var(--accent-ink); background:var(--accent); border:0; border-radius:14px; cursor:pointer;
+  touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+}
+.act:disabled{opacity:.45; cursor:default}
+.act.holding{transform:scale(.985); filter:brightness(.88)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--ink); outline-offset:2px}
+.choices{display:grid; gap:8px; margin-bottom:14px}
+.choices.two{grid-template-columns:1fr 1fr}
+.choices.three{grid-template-columns:repeat(3,1fr)}
+.choices:last-child{margin-bottom:0}
+.choice{
+  text-align:left; font:inherit; color:var(--ink); background:var(--bg); border:2px solid var(--line);
+  border-radius:10px; padding:10px 12px; cursor:pointer;
+}
+.choice b{display:block; font-weight:800}
+.choice span{display:block; font-size:.85rem; color:var(--muted); margin-top:2px}
+.choice[aria-pressed="true"]{border-color:var(--accent); background:var(--surface-2)}
+.choice:disabled{opacity:.55; cursor:default}
+.addrow{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.addrow input{flex:1 1 160px; min-width:0; font:inherit; padding:9px 12px; color:var(--ink); background:var(--bg); border:2px solid var(--line); border-radius:10px}
+.btn{font:inherit; font-weight:600; padding:9px 14px; color:var(--ink); background:var(--surface-2); border:2px solid var(--line); border-radius:10px; cursor:pointer}
+.btn:disabled{opacity:.5; cursor:default}
+.shown{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.shown p{margin:0}
+.tablewrap{overflow-x:auto}
+table{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap}
+th:first-child,td:first-child{text-align:center; width:2.4em; color:var(--muted)}
+th:nth-child(2),td:nth-child(2){text-align:left}
+th{font-weight:600; color:var(--muted); font-size:.9rem}
+tr.lead td:nth-child(2),tr.lead td:last-child{font-weight:800}
+tr.lead td:last-child{color:var(--good)}
+tr.you td:first-child{box-shadow:inset 4px 0 0 var(--accent)}
+.sync{margin:0 0 8px; font-size:.88rem; color:var(--muted)}
+.sync.off{color:var(--bad)}
+.log{list-style:none; margin:12px 0 0; padding:0; display:grid; gap:6px; font-size:.95rem}
+.log li{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.log .muted{color:var(--muted)}
+.empty{color:var(--muted); margin:10px 0 0}
+details{margin-top:14px}
+summary{cursor:pointer; color:var(--muted); font-size:.92rem}
+.org{margin-top:10px}
+.org p{margin:8px 0 0; font-size:.9rem; color:var(--muted)}
+[hidden]{display:none !important}
+@media (max-width:520px){
+  .choices.three{grid-template-columns:1fr}
+  .choices.two{grid-template-columns:1fr}
+  h1{font-size:1.45rem}
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <h1>Kloten Fishing</h1>
+    <p class="turn" id="turn"></p>
+  </header>
+
+  <section class="panel first" aria-label="Your name">
+    <div id="nameForm">
+      <h2>Your name</h2>
+      <p class="hint">Pick a name your friends will recognise. Everyone using the same name counts as the same angler.</p>
+      <div class="addrow">
+        <input id="nameInput" type="text" maxlength="14" placeholder="Your name" autocomplete="off" aria-label="Your name">
+        <button class="btn" id="saveName" type="button">Save name</button>
+      </div>
+    </div>
+    <div id="nameShown" class="shown" hidden>
+      <p>Playing as <strong id="nameText"></strong></p>
+      <button class="btn" id="changeName" type="button">Change name</button>
+    </div>
+  </section>
+
+  <canvas id="scene" role="img" aria-label="Side view of a Swedish forest lake with an angler on a wooden jetty"></canvas>
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div id="result" class="result" hidden></div>
+
+  <div id="castMeter" hidden>
+    <div class="meter" aria-hidden="true">
+      <div class="zone sweet" style="left:62%;width:24%"></div>
+      <div class="marker" id="castMarker"></div>
+    </div>
+    <div class="meter-labels"><span>Short</span><span>Far</span></div>
+  </div>
+
+  <div id="reelMeter" hidden>
+    <div class="meter" aria-hidden="true">
+      <div class="zone slack"></div>
+      <div class="zone band" id="band"></div>
+      <div class="zone danger"></div>
+      <div class="marker needle" id="needle"></div>
+    </div>
+    <div class="meter-labels"><span>Slack</span><span>Keep the needle in the green</span><span>Snap</span></div>
+    <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+  </div>
+
+  <button class="act" id="act" type="button"></button>
+
+  <section class="panel" id="setup" aria-label="Spot and bait">
+    <h2>Fishing spot</h2>
+    <div class="choices two" id="spots"></div>
+    <h2>Bait</h2>
+    <div class="choices three" id="baits"></div>
+  </section>
+
+  <section class="panel" aria-label="Leaderboard">
+    <h2>Leaderboard</h2>
+    <p class="sync" id="sync">Connecting…</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>Angler</th><th>Fish</th><th>Biggest</th><th>Total</th><th>Lost</th><th>Points</th></tr></thead>
+        <tbody id="scoreBody"></tbody>
+      </table>
+    </div>
+    <ul class="log" id="log"></ul>
+    <details>
+      <summary>Organizer tools</summary>
+      <div class="org">
+        <div class="addrow">
+          <input id="pin" type="password" placeholder="Reset PIN" autocomplete="off" aria-label="Reset PIN">
+          <button class="btn" id="resetBtn" type="button">Clear all scores</button>
+        </div>
+        <p id="resetMsg"></p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- constants & data ---------- */
+const API = '/api/scores';
+const W = 960, H = 540, WATER = 262, SC = 1.5;
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const cleanName = s => String(s == null ? '' : s).replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 14);
+
+function rng(seed){
+  let a = seed;
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+
+const SPOTS = {
+  malings: {
+    name: 'Malingsbosjön', blurb: 'Open, deep water. Slower bites, bigger fish.',
+    waitMin: 3, waitMax: 7, k: 0.8, mult: { perch: 0.8, trout: 1, pike: 1.3 },
+    sky: ['#8FAFC0', '#E8D7B4'], glow: 'rgba(255,226,170,.55)', hills: '#6E8F8A', back: '#3F6B5A', front: '#1D3B30',
+    wTop: '#4C7B8B', wBot: '#10303A', seed: 11
+  },
+  korslangen: {
+    name: 'Stora Korslången', blurb: 'Sheltered bays. Quick bites, more variety.',
+    waitMin: 1.5, waitMax: 4, k: 1.3, mult: { perch: 1.3, trout: 1.2, pike: 0.7 },
+    sky: ['#B9D8CB', '#F4EBC8'], glow: 'rgba(255,244,200,.6)', hills: '#8DB3A0', back: '#5A8C66', front: '#2B5A3E',
+    wTop: '#5E9C90', wBot: '#17474A', seed: 29
+  }
+};
+const BAITS = {
+  worm:    { name: 'Worm',    blurb: 'Perch love it.',       aff: { perch: .6,  trout: .3,  pike: .1 } },
+  spinner: { name: 'Spinner', blurb: 'Best for trout.',      aff: { perch: .25, trout: .5,  pike: .25 } },
+  wobbler: { name: 'Wobbler', blurb: 'Big lure, big pike.',  aff: { perch: .1,  trout: .25, pike: .65 } }
+};
+const FISH = {
+  perch: { name: 'Perch', sv: 'Abborre', min: .1,  max: 1.5, dMin: .08, dMax: .45, mult: 2,   len: [38, 72], cm: [14, 38],  h: .22,
+           top: '#4f6b2c', bot: '#cfd08e', fin: '#e4672a', mark: '#24331a' },
+  trout: { name: 'Trout', sv: 'Öring',   min: .3,  max: 4,   dMin: .25, dMax: .7,  mult: 1.5, len: [58, 104], cm: [25, 65], h: .15,
+           top: '#7b8b62', bot: '#e8e2c6', fin: '#a9b58a', mark: '#2b3324' },
+  pike:  { name: 'Pike',  sv: 'Gädda',   min: .8,  max: 12,  dMin: .4,  dMax: 1,   mult: 1,   len: [84, 176], cm: [45, 115], h: .11,
+           top: '#4d5d27', bot: '#d6d3a2', fin: '#8a8a3a', mark: '#c8c25a' }
+};
+
+/* ---------- saved state (this device only) ---------- */
+const KEY = 'kloten-fishing-shared-v1';
+let save = { name: '', spot: 'malings', bait: 'worm', pending: [] };
+try {
+  const raw = localStorage.getItem(KEY);
+  if (raw){ const o = JSON.parse(raw); if (o && typeof o === 'object') save = Object.assign(save, o); }
+} catch (e) {}
+save.name = cleanName(save.name);
+if (!SPOTS[save.spot]) save.spot = 'malings';
+if (!BAITS[save.bait]) save.bait = 'worm';
+if (!Array.isArray(save.pending)) save.pending = [];
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+const player = () => save.name || 'You';
+
+/* ---------- shared board (from the server) ---------- */
+let board = { catches: [], lost: {} };
+let online = null, editingName = false;
+
+const newId = () => Date.now() + '-' + (Math.random().toString(36) + '000000').slice(2, 8);
+
+async function fetchBoard(){
+  try {
+    const r = await fetch(API, { cache: 'no-store' });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const d = await r.json();
+    board = { catches: Array.isArray(d.catches) ? d.catches : [], lost: d.lost && typeof d.lost === 'object' ? d.lost : {} };
+    online = true;
+  } catch (e){ online = false; }
+  renderScore();
+}
+let flushing = false;
+async function flush(){
+  if (flushing || !save.pending.length) return;
+  flushing = true;
+  try {
+    while (save.pending.length){
+      const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(save.pending[0]) });
+      if (r.ok || r.status === 400){ save.pending.shift(); persist(); }
+      else throw new Error('http ' + r.status);
+    }
+  } catch (e){ online = false; }
+  flushing = false;
+}
+async function syncNow(){ await flush(); await fetchBoard(); }
+
+function mergedCatches(){
+  const have = new Set(board.catches.map(c => c.id));
+  const mine = save.pending.filter(e => e.t === 'c' && !have.has(e.id));
+  return board.catches.concat(mine);
+}
+function mergedLost(){
+  const out = Object.assign({}, board.lost);
+  for (const e of save.pending) if (e.t === 'l') out[e.p] = (out[e.p] || 0) + 1;
+  return out;
+}
+
+/* ---------- runtime state ---------- */
+const g = {
+  phase: 'idle', t: 0, power: 0, powerDir: 1, quality: 0, landX: 0, flyT: 0,
+  waitLeft: 0, biteLeft: 0, fish: null, tension: .35, progress: .3, stress: 0,
+  band: { c: .5, w: .38, lo: .31, hi: .69 }, surge: { state: 'none', timer: 2, str: 0 },
+  reelTime: 0, holding: false, result: null, resultT: 0, ripples: []
+};
+
+/* ---------- DOM helpers ---------- */
+function mk(tag, attrs, ...kids){
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs){
+    if (k === 'class') e.className = attrs[k];
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  for (const kid of kids.flat()){
+    if (kid == null) continue;
+    e.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return e;
+}
+let lastStatus = '';
+function setStatus(t){ if (t !== lastStatus){ lastStatus = t; $('status').textContent = t; } }
+
+/* ---------- canvas setup ---------- */
+const canvas = $('scene');
+canvas.width = W * SC; canvas.height = H * SC;
+const ctx = canvas.getContext('2d');
+ctx.setTransform(SC, 0, 0, SC, 0, 0);
+
+for (const k in SPOTS){
+  const sp = SPOTS[k], r = rng(sp.seed);
+  sp.backTrees = []; sp.frontTrees = []; sp.weeds = [];
+  for (let x = -20; x < W + 30; x += 18 + r() * 16) sp.backTrees.push({ x, h: 50 + r() * 45, w: 22 + r() * 14 });
+  for (let x = -20; x < W + 40; x += 30 + r() * 26) sp.frontTrees.push({ x, h: 80 + r() * 55, w: 34 + r() * 18 });
+  for (let i = 0; i < 14; i++) sp.weeds.push({ x: 30 + i * 68 + r() * 30, h: 40 + r() * 40, ph: r() * 6 });
+}
+
+/* ---------- fish drawing ---------- */
+function drawFish(c, x, y, L, key, colored, swim, flip){
+  const f = FISH[key], hh = f.h * L, wag = Math.sin(swim) * L * .045;
+  c.save(); c.translate(x, y); if (flip) c.scale(-1, 1);
+  const body = () => {
+    c.beginPath(); c.moveTo(-L / 2, 0);
+    c.bezierCurveTo(-L * .3, -hh * 1.25, L * .2, -hh * 1.1, L * .4, -hh * .25 + wag * .3);
+    c.lineTo(L * .4, hh * .25 + wag * .3);
+    c.bezierCurveTo(L * .2, hh * 1.1, -L * .3, hh * 1.25, -L / 2, 0); c.closePath();
+  };
+  const sil = 'rgba(5,20,24,.5)';
+  c.beginPath(); c.moveTo(L * .38, wag * .3); c.lineTo(L * .6, -hh * 1.05 + wag); c.lineTo(L * .54, wag * .6);
+  c.lineTo(L * .6, hh * 1.05 + wag); c.closePath(); c.fillStyle = colored ? f.fin : sil; c.fill();
+  const dx = key === 'pike' ? L * .22 : L * .0, dw = key === 'pike' ? L * .16 : L * .26, dh = key === 'perch' ? hh * 1.0 : hh * .7;
+  c.beginPath(); c.moveTo(dx - dw / 2, -hh * .95); c.lineTo(dx, -hh * .95 - dh); c.lineTo(dx + dw / 2, -hh * .85); c.closePath();
+  c.fillStyle = colored ? f.fin : sil; c.fill();
+  body();
+  if (colored){
+    const gr = c.createLinearGradient(0, -hh, 0, hh); gr.addColorStop(0, f.top); gr.addColorStop(.6, f.top); gr.addColorStop(1, f.bot);
+    c.fillStyle = gr; c.fill();
+    c.save(); body(); c.clip();
+    if (key === 'perch'){
+      c.fillStyle = f.mark;
+      for (let i = 0; i < 6; i++) c.fillRect(-L * .24 + i * L * .1, -hh, L * .035, hh * 1.4);
+    } else if (key === 'trout'){
+      c.fillStyle = '#d68a8a'; c.fillRect(-L * .3, -hh * .08, L * .66, hh * .22);
+      c.fillStyle = f.mark;
+      for (let i = 0; i < 14; i++){ c.beginPath(); c.arc(-L * .3 + (i % 7) * L * .1, (i < 7 ? -hh * .5 : -hh * .22), L * .008 + 1, 0, 7); c.fill(); }
+    } else {
+      c.fillStyle = f.mark;
+      for (let i = 0; i < 18; i++){ c.beginPath(); c.arc(-L * .3 + (i % 9) * L * .085, (i < 9 ? -hh * .5 : hh * .05), L * .012 + 1, 0, 7); c.fill(); }
+    }
+    c.restore();
+    c.fillStyle = '#10150d'; c.beginPath(); c.arc(-L * .38, -hh * .3, Math.max(2, L * .018), 0, 7); c.fill();
+  } else { c.fillStyle = sil; c.fill(); }
+  c.restore();
+}
+
+/* ---------- scene drawing ---------- */
+function spruce(c, x, base, h, w){
+  for (let i = 0; i < 4; i++){
+    const ty = base - h * (i / 4) * .8, tw = w * (1 - i * .2), th = h * .45;
+    c.beginPath(); c.moveTo(x, ty - th); c.lineTo(x + tw / 2, ty); c.lineTo(x - tw / 2, ty); c.closePath(); c.fill();
+  }
+}
+function trees(c, sp){
+  c.fillStyle = sp.back; for (const t of sp.backTrees) spruce(c, t.x, WATER, t.h, t.w);
+  c.fillStyle = sp.front; for (const t of sp.frontTrees) spruce(c, t.x, WATER + 4, t.h, t.w);
+}
+function rodGeometry(){
+  let bend = 0.15;
+  if (g.phase === 'reeling') bend = g.tension;
+  else if (g.phase === 'casting') bend = .2 + g.power * .6;
+  else if (g.phase === 'bite') bend = .5;
+  return { bx: 146, by: WATER - 90, tx: 250 - bend * 14, ty: 110 + bend * 30, bend };
+}
+function bobberPos(){
+  const rg = rodGeometry();
+  if (g.phase === 'flying'){
+    const u = g.flyT;
+    return { x: lerp(rg.tx, g.landX, u), y: lerp(rg.ty, WATER, u) - 150 * u * (1 - u) };
+  }
+  let dip = 0;
+  if (g.phase === 'waiting') dip = 1.5 * Math.sin(g.t * 2.2);
+  if (g.phase === 'bite') dip = 9 + 6 * Math.sin(g.t * 32);
+  return { x: g.landX, y: WATER + dip };
+}
+
+function drawCatchPhoto(c){
+  const f = g.result.fish, fd = FISH[f.key], u = ease(clamp(g.resultT / .6, 0, 1)), name = player();
+  let hs = 0; for (const ch of name) hs = (hs * 31 + ch.charCodeAt(0)) | 0; hs = Math.abs(hs);
+  const jacket = ['#35506b', '#6b3b2f', '#4a5a2a', '#55406b', '#2f5f58'][hs % 5];
+  const hat = ['#B3322F', '#d6a21e', '#e8e2c6', '#3d7f8c'][(hs >> 3) % 4];
+  const rr = (x, y, w, h, r) => { c.beginPath(); if (c.roundRect) c.roundRect(x, y, w, h, r); else c.rect(x, y, w, h); };
+  c.fillStyle = 'rgba(8,18,14,' + (.66 * u).toFixed(3) + ')'; c.fillRect(0, 0, W, H);
+  c.save(); c.globalAlpha = u;
+  c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 4; c.strokeRect(20, 20, W - 40, H - 40);
+  // angler holding up the fish
+  c.save(); c.beginPath(); c.rect(22, 22, W - 44, H - 44); c.clip();
+  c.translate(330, H - 22 + (1 - u) * 90); c.scale(1.3, 1.3);
+  const skin = '#d9b895', L = clamp(f.len * 1.6, 70, 300), th = .3 + Math.sin(g.t * 1.6) * .03;
+  const fx = 14, fy = -178, cs = Math.cos(th), sn = Math.sin(th), hh = fd.h * L;
+  const grip = (p, yo) => ({ x: fx + p * cs - yo * sn, y: fy + p * sn + yo * cs });
+  const h1 = grip(-L * .2, hh * .6), h2 = grip(L * .26, hh * .6);
+  c.fillStyle = '#222d29'; c.fillRect(-40, -92, 34, 92); c.fillRect(6, -92, 34, 92);
+  c.fillStyle = '#14100c'; c.fillRect(-48, -14, 46, 14); c.fillRect(2, -14, 46, 14);
+  c.fillStyle = jacket; rr(-64, -236, 128, 152, 20); c.fill();
+  c.strokeStyle = jacket; c.lineWidth = 26; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-52, -212); c.lineTo(h1.x, h1.y); c.stroke();
+  c.beginPath(); c.moveTo(52, -212); c.lineTo(h2.x, h2.y); c.stroke();
+  c.save(); c.translate(fx, fy); c.rotate(th); drawFish(c, 0, 0, L, f.key, true, g.t * 2, false); c.restore();
+  c.fillStyle = skin; c.beginPath(); c.arc(h1.x, h1.y, 14, 0, 7); c.fill(); c.beginPath(); c.arc(h2.x, h2.y, 14, 0, 7); c.fill();
+  c.fillStyle = skin; c.beginPath(); c.arc(0, -272, 36, 0, 7); c.fill();
+  c.fillStyle = hat; c.beginPath(); c.arc(0, -280, 38, Math.PI, 2 * Math.PI); c.fill();
+  c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(-38, -282, 76, 12);
+  c.fillStyle = hat; c.beginPath(); c.arc(0, -320, 9, 0, 7); c.fill();
+  c.fillStyle = '#1b1b18'; c.beginPath(); c.arc(-12, -270, 3.5, 0, 7); c.fill(); c.beginPath(); c.arc(12, -270, 3.5, 0, 7); c.fill();
+  c.strokeStyle = '#6b3a2a'; c.lineWidth = 3; c.beginPath(); c.arc(0, -262, 15, .15 * Math.PI, .85 * Math.PI); c.stroke();
+  c.restore();
+  // caption card
+  c.save(); c.translate((1 - u) * 60, 0);
+  c.fillStyle = 'rgba(248,250,246,.96)'; rr(604, 96, 316, 348, 18); c.fill();
+  c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  const FF = 'Bricolage Grotesque, system-ui, sans-serif', X = 630, MW = 264;
+  const txt = (s, y, wt, size, col, ital) => {
+    let z = size; const fnt = () => (ital ? 'italic ' : '') + wt + ' ' + z + 'px ' + FF;
+    c.font = fnt(); while (c.measureText(s).width > MW && z > 14){ z -= 2; c.font = fnt(); }
+    c.fillStyle = col; c.fillText(s, X, y);
+  };
+  txt(name + ' caught a', 142, '600', 22, '#52645A');
+  txt(fd.name, 200, '800', 54, '#15251D');
+  txt(fd.sv, 232, '400', 22, '#52645A', true);
+  txt(f.kg.toFixed(2) + ' kg', 302, '800', 56, '#B3322F');
+  txt('about ' + f.cm + ' cm', 342, '600', 26, '#15251D');
+  const cc = { Small: '#7c8f84', Decent: '#2E7D4E', Big: '#D69A1A', Monster: '#B3322F' }[f.cls];
+  c.fillStyle = cc; rr(X, 362, 128, 40, 20); c.fill();
+  c.font = '800 20px ' + FF; c.fillStyle = f.cls === 'Big' ? '#15251D' : '#fff'; c.textAlign = 'center'; c.fillText(f.cls, X + 64, 389);
+  c.textAlign = 'left'; c.font = '800 24px ' + FF; c.fillStyle = '#15251D'; c.fillText('+' + f.pts + ' pts', X + 144, 390);
+  txt(SPOTS[save.spot].name, 428, '400', 16, '#52645A');
+  c.restore();
+  c.restore();
+  // camera flash
+  if (g.resultT > .6 && g.resultT < 1){ c.fillStyle = 'rgba(255,255,255,' + (.55 * (1 - (g.resultT - .6) / .4)).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
+}
+
+function draw(){
+  const sp = SPOTS[save.spot], c = ctx;
+  let gr = c.createLinearGradient(0, 0, 0, WATER); gr.addColorStop(0, sp.sky[0]); gr.addColorStop(1, sp.sky[1]);
+  c.fillStyle = gr; c.fillRect(0, 0, W, WATER);
+  gr = c.createRadialGradient(700, 130, 5, 700, 130, 230); gr.addColorStop(0, sp.glow); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = gr; c.fillRect(0, 0, W, WATER);
+  c.fillStyle = sp.hills; c.beginPath(); c.moveTo(0, WATER);
+  for (let x = 0; x <= W; x += 12) c.lineTo(x, WATER - 52 - 20 * Math.sin(x * .011 + sp.seed) - 11 * Math.sin(x * .029));
+  c.lineTo(W, WATER); c.closePath(); c.fill();
+  trees(c, sp);
+  gr = c.createLinearGradient(0, WATER, 0, H); gr.addColorStop(0, sp.wTop); gr.addColorStop(1, sp.wBot);
+  c.fillStyle = gr; c.fillRect(0, WATER, W, H - WATER);
+  c.save(); c.beginPath(); c.rect(0, WATER, W, 130); c.clip(); c.globalAlpha = .16;
+  c.translate(0, 2 * WATER); c.scale(1, -1); trees(c, sp); c.restore();
+  c.fillStyle = 'rgba(255,255,255,.045)';
+  for (let i = 0; i < 3; i++){
+    const x0 = 300 + i * 190 + Math.sin(g.t * .3 + i) * 12;
+    c.beginPath(); c.moveTo(x0, WATER); c.lineTo(x0 + 70, WATER); c.lineTo(x0 - 60, H); c.lineTo(x0 - 150, H); c.closePath(); c.fill();
+  }
+  c.strokeStyle = 'rgba(150,200,140,.35)'; c.lineWidth = 3; c.lineCap = 'round';
+  for (const w of sp.weeds){
+    const sw = Math.sin(g.t * .9 + w.ph) * 8;
+    c.beginPath(); c.moveTo(w.x, H); c.bezierCurveTo(w.x + sw, H - w.h * .4, w.x - sw, H - w.h * .7, w.x + sw * 1.4, H - w.h); c.stroke();
+  }
+  c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(0, WATER); c.lineTo(W, WATER); c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,.13)'; c.lineWidth = 2;
+  for (let i = 0; i < 20; i++){
+    const x = (i * 53 + g.t * 7 * (i % 3 + 1)) % W, y = WATER + 8 + (i % 5) * 5, w = 14 + (i % 4) * 7;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x + w, y); c.stroke();
+  }
+  for (const r of g.ripples){
+    const a = 1 - r.t; c.strokeStyle = 'rgba(255,255,255,' + (.5 * a).toFixed(3) + ')'; c.lineWidth = 2;
+    c.beginPath(); c.ellipse(r.x, WATER + 1, 8 + r.t * r.size, 2.5 + r.t * r.size * .22, 0, 0, 7); c.stroke();
+  }
+  c.fillStyle = 'rgba(40,28,18,.8)';
+  for (const px of [34, 120, 214]) c.fillRect(px, WATER - 4, 10, 74);
+  c.fillStyle = '#7a5a3a'; c.fillRect(0, WATER - 16, 252, 9);
+  c.fillStyle = '#5a4128'; c.fillRect(0, WATER - 8, 252, 5);
+  c.fillStyle = '#2c3a35'; c.fillRect(100, WATER - 88, 22, 72);
+  c.fillStyle = '#d9b895'; c.beginPath(); c.arc(111, WATER - 99, 10, 0, 7); c.fill();
+  c.fillStyle = '#B3322F'; c.beginPath(); c.arc(111, WATER - 103, 11, Math.PI, 2 * Math.PI); c.fill();
+  c.strokeStyle = '#2c3a35'; c.lineWidth = 6; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(118, WATER - 72); c.lineTo(146, WATER - 90); c.stroke();
+  const rg = rodGeometry();
+  c.strokeStyle = '#2b1d10'; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(rg.bx, rg.by); c.quadraticCurveTo(200, WATER - 150 + rg.bend * 10, rg.tx, rg.ty); c.stroke();
+
+  const ph = g.phase;
+  if (ph === 'casting'){
+    const px = 250 + g.power * 560;
+    c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 2;
+    c.beginPath(); c.arc(px, WATER, 7, 0, 7); c.stroke();
+  }
+  if (ph === 'flying' || ph === 'waiting' || ph === 'bite'){
+    const b = bobberPos();
+    c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 1.3;
+    c.beginPath(); c.moveTo(rg.tx, rg.ty);
+    c.quadraticCurveTo((rg.tx + b.x) / 2, Math.max(rg.ty, b.y) + (ph === 'flying' ? 6 : 34), b.x, b.y); c.stroke();
+    c.fillStyle = '#f4f1ea'; c.beginPath(); c.arc(b.x, b.y, 7, 0, Math.PI); c.fill();
+    c.fillStyle = '#B3322F'; c.beginPath(); c.arc(b.x, b.y, 7, Math.PI, 2 * Math.PI); c.fill();
+    if (ph === 'bite'){
+      c.fillStyle = '#B3322F'; c.beginPath(); c.arc(b.x, b.y - 46, 17, 0, 7); c.fill();
+      c.fillStyle = '#fff'; c.font = '800 24px "Bricolage Grotesque", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('!', b.x, b.y - 45);
+    }
+  }
+  if (ph === 'reeling' && g.fish){
+    const d = g.fish.diff, s = g.surge, L = g.fish.len;
+    const jit = s.state === 'warn' ? 4 : s.state === 'pull' ? 8 : 0;
+    const fx = lerp(g.landX, 262, ease(clamp(g.progress, 0, 1))) + Math.sin(g.t * 8) * 3 * (.5 + d) + (jit ? rand(-jit, jit) : 0);
+    const fy = WATER + 62 + 100 * (1 - g.progress) * .8 + Math.sin(g.t * 5) * 6 + (jit ? rand(-jit, jit) : 0);
+    drawFish(c, fx, fy, L, g.fish.key, false, g.t * (s.state === 'pull' ? 22 : 9), false);
+    const mx = fx - L * .5, my = fy;
+    c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 1.3;
+    const sag = (1 - g.tension) * 46;
+    c.beginPath(); c.moveTo(rg.tx, rg.ty); c.quadraticCurveTo((rg.tx + mx) / 2, (rg.ty + my) / 2 + sag, mx, my); c.stroke();
+    if (s.state === 'warn'){
+      c.fillStyle = '#D69A1A'; c.beginPath(); c.arc(fx, fy - L * .35 - 30, 17, 0, 7); c.fill();
+      c.fillStyle = '#15251D'; c.font = '800 24px "Bricolage Grotesque", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('!', fx, fy - L * .35 - 29);
+    }
+  }
+  if (ph === 'result' && g.result && !g.result.lost) drawCatchPhoto(c);
+}
+
+/* ---------- game logic ---------- */
+function rollFish(q){
+  const sp = SPOTS[save.spot], b = BAITS[save.bait];
+  const ws = Object.keys(FISH).map(k => [k, b.aff[k] * sp.mult[k]]);
+  const tot = ws.reduce((s, x) => s + x[1], 0);
+  let r = Math.random() * tot, key = ws[0][0];
+  for (const [k, w] of ws){ if ((r -= w) <= 0){ key = k; break; } }
+  const f = FISH[key];
+  const t = Math.pow(Math.random(), sp.k * (1.25 - .5 * q));
+  const kg = Math.round((f.min + (f.max - f.min) * Math.pow(t, 1.4)) * 100) / 100;
+  const cls = t < .33 ? 'Small' : t < .66 ? 'Decent' : t < .9 ? 'Big' : 'Monster';
+  const pts = Math.round(kg * f.mult * 10) + (cls === 'Big' ? 10 : cls === 'Monster' ? 40 : 0);
+  return { key, t, kg, diff: lerp(f.dMin, f.dMax, t), cls, pts, len: lerp(f.len[0], f.len[1], t), cm: Math.round(lerp(f.cm[0], f.cm[1], t)) };
+}
+
+function setPhase(p){ g.phase = p; syncUI(); }
+
+function press(){
+  switch (g.phase){
+    case 'idle': if (!save.name) return; g.power = 0; g.powerDir = 1; setPhase('casting'); break;
+    case 'casting': stopCast(); break;
+    case 'bite': g.holding = true; hook(); break;
+    case 'reeling': g.holding = true; break;
+    case 'result': if (!resultLocked()) nextTurn(); break;
+  }
+  syncAct();
+}
+function resultLocked(){ return g.phase === 'result' && g.resultT < (g.result && g.result.lost ? 1.2 : 2.5); }
+function release(){ g.holding = false; syncAct(); }
+
+function stopCast(){
+  const p = g.power;
+  g.quality = clamp(1 - Math.abs(p - .74) / .5, 0, 1);
+  g.landX = 250 + p * 560;
+  g.fish = rollFish(g.quality);
+  g.flyT = 0;
+  setPhase('flying');
+}
+
+function hook(){
+  g.tension = .35; g.progress = .3; g.stress = 0; g.reelTime = 0;
+  g.surge = { state: 'none', timer: rand(1.5, 2.5), str: 0 };
+  vibrate(40);
+  setPhase('reeling');
+}
+
+function updateReel(dt){
+  const f = g.fish, d = f.diff;
+  g.reelTime += dt;
+  const amp = .06 + .15 * d, fr = .4 + .7 * d;
+  const wv = .6 * Math.sin(fr * g.reelTime) + .4 * Math.sin(2.3 * fr * g.reelTime + 1.3);
+  const w = .38 - .14 * d;
+  const c = clamp(.5 + amp * wv, w / 2 + .06, .86 - w / 2);
+  g.band = { c, w, lo: c - w / 2, hi: c + w / 2 };
+  const s = g.surge; s.timer -= dt;
+  if (s.state === 'none' && s.timer <= 0){ s.state = 'warn'; s.timer = .8; }
+  else if (s.state === 'warn' && s.timer <= 0){ s.state = 'pull'; s.timer = .45 + .4 * d; s.str = .3 + .6 * d; vibrate(25); }
+  else if (s.state === 'pull' && s.timer <= 0){ s.state = 'none'; s.timer = rand(3.2 - 1.6 * d, 4.2 - 2 * d); }
+  const pull = s.state === 'pull' ? s.str : 0;
+  g.tension = clamp(g.tension + ((g.holding ? .9 : -.75) + pull) * dt, 0, 1);
+  const pr = dt / (4 + 9 * d), T = g.tension;
+  if (T >= g.band.lo && T <= g.band.hi) g.progress += pr;
+  else if (T < g.band.lo) g.progress -= pr * .6;
+  else g.progress += pr * .4;
+  if (T > .9) g.stress += dt * 2 * ((T - .9) / .1); else g.stress -= dt * 1.2;
+  g.stress = clamp(g.stress, 0, 1);
+  if (s.state === 'warn') setStatus('It is about to pull hard. Ease off!');
+  else if (s.state === 'pull') setStatus('Pulling! Let the line run.');
+  else setStatus(d < .3 ? 'Light tug. Keep the needle in the green.' : d < .6 ? 'A solid pull. Stay in the green.' : d < .85 ? 'Heavy fish. Stay calm.' : 'This one is huge. Easy does it.');
+  if (g.stress >= 1) return lose('Snap! You pulled too hard and the line broke.');
+  if (g.progress <= 0) return lose('Too much slack. The fish shook the hook.');
+  if (g.reelTime > 70) return lose('The fish wore you out and got away.');
+  if (g.progress >= 1) return land();
+}
+
+function land(){
+  const f = g.fish;
+  save.pending.push({ t: 'c', id: newId(), p: save.name, sp: f.key, kg: f.kg, cm: f.cm, cls: f.cls, pts: f.pts, spot: save.spot });
+  persist(); renderScore(); syncNow();
+  g.result = { lost: false, fish: f };
+  g.resultT = 0; g.holding = false;
+  setPhase('result');
+}
+function lose(msg){
+  save.pending.push({ t: 'l', id: newId(), p: save.name });
+  persist(); renderScore(); syncNow();
+  g.result = { lost: true, msg }; g.resultT = 0; g.holding = false;
+  setPhase('result');
+}
+function nextTurn(){ g.fish = null; g.result = null; setPhase('idle'); }
+function vibrate(ms){ try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+function update(dt){
+  const sp = SPOTS[save.spot];
+  for (const r of g.ripples) r.t += dt * .9;
+  g.ripples = g.ripples.filter(r => r.t < 1);
+  switch (g.phase){
+    case 'casting':
+      g.power += g.powerDir * 1.15 * dt;
+      if (g.power >= 1){ g.power = 1; g.powerDir = -1; } else if (g.power <= 0){ g.power = 0; g.powerDir = 1; }
+      break;
+    case 'flying':
+      g.flyT += dt / .7;
+      if (g.flyT >= 1){
+        g.flyT = 1; g.waitLeft = rand(sp.waitMin, sp.waitMax);
+        g.ripples.push({ x: g.landX, t: 0, size: 46 });
+        setPhase('waiting');
+      }
+      break;
+    case 'waiting':
+      g.waitLeft -= dt;
+      if (Math.random() < dt * .6) g.ripples.push({ x: g.landX, t: .3, size: 24 });
+      if (g.waitLeft <= 0){ g.biteLeft = 1.4; g.ripples.push({ x: g.landX, t: 0, size: 70 }); vibrate(60); setPhase('bite'); }
+      break;
+    case 'bite':
+      g.biteLeft -= dt;
+      if (g.biteLeft <= 0) lose('Too slow. The fish took the bait and left.');
+      break;
+    case 'reeling': updateReel(dt); break;
+    case 'result': g.resultT += dt; break;
+  }
+}
+
+/* ---------- UI sync ---------- */
+function actLabel(){
+  switch (g.phase){
+    case 'idle': return save.name ? 'Cast, ' + save.name : 'Enter your name first';
+    case 'casting': return 'Stop!';
+    case 'flying': return '…';
+    case 'waiting': return 'Waiting for a bite…';
+    case 'bite': return 'Hook it!';
+    case 'reeling': return g.holding ? 'Reeling…' : 'Hold to reel';
+    case 'result': if (resultLocked()) return g.result && g.result.lost ? '…' : 'Say cheese!'; return 'Cast again';
+  }
+  return '';
+}
+function syncAct(){
+  const b = $('act');
+  const label = actLabel();
+  if (b.textContent !== label) b.textContent = label;
+  b.disabled = g.phase === 'flying' || g.phase === 'waiting' || resultLocked() || (g.phase === 'idle' && !save.name);
+  b.classList.toggle('holding', g.phase === 'reeling' && g.holding);
+}
+function syncUI(){
+  const ph = g.phase;
+  $('castMeter').hidden = ph !== 'casting';
+  $('reelMeter').hidden = ph !== 'reeling';
+  const rb = $('result');
+  rb.hidden = ph !== 'result';
+  if (ph === 'result' && g.result){
+    rb.className = 'result' + (g.result.lost ? ' lost' : '');
+    rb.replaceChildren();
+    if (g.result.lost){
+      rb.append(mk('h2', null, 'It got away'), mk('p', null, g.result.msg));
+      setStatus('Nothing on the leaderboard this time.');
+    } else {
+      const f = g.result.fish, fd = FISH[f.key];
+      rb.append(
+        mk('h2', null, f.cls + ' ' + fd.name.toLowerCase() + ', ' + f.kg.toFixed(2) + ' kg'),
+        mk('p', null, fd.sv + ', about ' + f.cm + ' cm, from ' + SPOTS[save.spot].name + '. +' + f.pts + ' points for ' + player() + '.')
+      );
+      setStatus(f.cls === 'Monster' ? 'A monster! Show your friends.' : 'Landed! Nice one, ' + player() + '.');
+    }
+  }
+  if (ph === 'idle') setStatus(save.name ? 'Pick a spot and bait, then cast.' : 'Enter your name above to start.');
+  if (ph === 'casting') setStatus('Tap Stop when the marker is in the green zone for the best cast.');
+  if (ph === 'flying') setStatus('Cast!');
+  if (ph === 'waiting') setStatus('Waiting for a bite…');
+  if (ph === 'bite') setStatus('Bite! Hook it now!');
+  renderTurn(); renderChoices(); renderMe();
+  syncAct();
+}
+
+function renderTurn(){
+  const t = $('turn');
+  if (save.name) t.replaceChildren('Playing as ', mk('strong', null, save.name));
+  else t.replaceChildren('Enter your name to play');
+}
+function renderChoices(){
+  const locked = g.phase !== 'idle';
+  const spots = $('spots'); spots.replaceChildren();
+  for (const k in SPOTS){
+    spots.append(mk('button', { class: 'choice', type: 'button', 'aria-pressed': String(save.spot === k),
+      onclick: () => { if (g.phase !== 'idle') return; save.spot = k; persist(); renderChoices(); } },
+      mk('b', null, SPOTS[k].name), mk('span', null, SPOTS[k].blurb)));
+    if (locked) spots.lastChild.disabled = true;
+  }
+  const baits = $('baits'); baits.replaceChildren();
+  for (const k in BAITS){
+    baits.append(mk('button', { class: 'choice', type: 'button', 'aria-pressed': String(save.bait === k),
+      onclick: () => { if (g.phase !== 'idle') return; save.bait = k; persist(); renderChoices(); } },
+      mk('b', null, BAITS[k].name), mk('span', null, BAITS[k].blurb)));
+    if (locked) baits.lastChild.disabled = true;
+  }
+}
+function renderMe(){
+  const has = !!save.name, form = !has || editingName;
+  $('nameForm').hidden = !form;
+  $('nameShown').hidden = form;
+  $('nameText').textContent = save.name;
+  $('changeName').disabled = g.phase !== 'idle';
+  renderScore();
+}
+function saveName(){
+  const inp = $('nameInput'), name = cleanName(inp.value);
+  if (!name) return;
+  save.name = name; editingName = false; inp.value = ''; persist(); syncUI();
+  syncNow();
+}
+$('saveName').addEventListener('click', saveName);
+$('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveName(); } });
+$('changeName').addEventListener('click', () => {
+  if (g.phase !== 'idle') return;
+  editingName = true; renderMe(); $('nameInput').value = save.name; $('nameInput').focus();
+});
+
+function renderSync(){
+  const s = $('sync');
+  s.className = 'sync' + (online === false ? ' off' : '');
+  const n = save.pending.length;
+  if (online === null) s.textContent = 'Connecting…';
+  else if (online) s.textContent = 'Live. Everyone with the link sees the same scores.';
+  else s.textContent = 'Offline. Your catches are saved on this device' + (n ? ' (' + n + ' waiting)' : '') + ' and will sync when you are back online.';
+}
+function renderScore(){
+  renderSync();
+  const cs = mergedCatches(), lost = mergedLost();
+  const names = new Set();
+  cs.forEach(c => names.add(c.p)); Object.keys(lost).forEach(n => names.add(n)); if (save.name) names.add(save.name);
+  const rows = [...names].map(name => {
+    const mine = cs.filter(c => c.p === name);
+    const best = mine.reduce((b, c) => (!b || c.kg > b.kg) ? c : b, null);
+    return { name, n: mine.length, best, kg: mine.reduce((s, c) => s + c.kg, 0), lost: lost[name] || 0, pts: mine.reduce((s, c) => s + c.pts, 0) };
+  }).sort((a, b) => b.pts - a.pts || b.kg - a.kg || a.name.localeCompare(b.name));
+  const body = $('scoreBody'); body.replaceChildren();
+  const top = rows.length ? rows[0].pts : 0;
+  rows.forEach((r, i) => {
+    const cls = [top > 0 && r.pts === top ? 'lead' : '', r.name === save.name ? 'you' : ''].join(' ').trim();
+    body.append(mk('tr', { class: cls },
+      mk('td', null, i + 1), mk('td', null, r.name + (r.name === save.name ? ' (you)' : '')), mk('td', null, r.n),
+      mk('td', null, r.best ? FISH[r.best.sp].name + ' ' + r.best.kg.toFixed(2) + ' kg' : '-'),
+      mk('td', null, r.kg.toFixed(2) + ' kg'), mk('td', null, r.lost), mk('td', null, r.pts)));
+  });
+  const log = $('log'); log.replaceChildren();
+  const recent = cs.slice().sort((a, b) => String(b.id).localeCompare(String(a.id))).slice(0, 8);
+  if (!recent.length) log.append(mk('li', { class: 'empty' }, 'No catches yet. The first fish is yours.'));
+  for (const c of recent){
+    log.append(mk('li', null,
+      mk('span', null, c.p + ' landed a ' + c.cls.toLowerCase() + ' ' + FISH[c.sp].name.toLowerCase() + ', ' + c.kg.toFixed(2) + ' kg'),
+      mk('span', { class: 'muted' }, (SPOTS[c.spot] ? SPOTS[c.spot].name + ', ' : '') + '+' + c.pts)));
+  }
+}
+
+$('resetBtn').addEventListener('click', async () => {
+  const msg = $('resetMsg'), pin = $('pin').value;
+  if (!pin){ msg.textContent = 'Enter the reset PIN first.'; return; }
+  msg.textContent = 'Clearing…';
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'reset', pin }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok){ msg.textContent = d.error || 'Could not clear scores.'; return; }
+    save.pending = []; persist(); $('pin').value = ''; msg.textContent = 'All scores cleared.';
+    await fetchBoard();
+  } catch (e){ msg.textContent = 'Could not reach the server.'; }
+});
+
+/* ---------- input ---------- */
+const act = $('act');
+act.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
+act.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);
+window.addEventListener('blur', release);
+function keyOk(e){
+  const t = e.target, tag = t && t.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SUMMARY') return false;
+  if (tag === 'BUTTON' && t !== act) return false;
+  return e.code === 'Space' || e.key === 'Enter';
+}
+window.addEventListener('keydown', e => { if (!keyOk(e)) return; e.preventDefault(); if (!e.repeat) press(); });
+window.addEventListener('keyup', e => { if (!keyOk(e)) return; e.preventDefault(); release(); });
+
+/* ---------- meters & loop ---------- */
+function updateMeters(){
+  if (g.phase === 'casting') $('castMarker').style.left = (g.power * 100).toFixed(1) + '%';
+  if (g.phase === 'reeling'){
+    const b = $('band'); b.style.left = (g.band.lo * 100).toFixed(1) + '%'; b.style.width = (g.band.w * 100).toFixed(1) + '%';
+    const n = $('needle'); n.style.left = (g.tension * 100).toFixed(1) + '%'; n.classList.toggle('hot', g.stress > .25);
+    $('progress').style.width = (clamp(g.progress, 0, 1) * 100).toFixed(1) + '%';
+  }
+}
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now - last) / 1000); last = now; g.t += dt;
+  update(dt); draw(); updateMeters();
+  if (g.phase === 'reeling' || g.phase === 'result') syncAct();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- start ---------- */
+syncUI();
+syncNow();
+setInterval(() => { if (!document.hidden) syncNow(); }, 8000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
