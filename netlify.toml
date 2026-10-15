@@ -1,0 +1,4 @@
+[build]
+  base = "kloten-fishing-shared"
+  publish = "public"
+  functions = "netlify/functions"
